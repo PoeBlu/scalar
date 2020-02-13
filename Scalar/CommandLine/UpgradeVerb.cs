@@ -113,14 +113,30 @@ namespace Scalar.CommandLine
                     this.tracer = jsonTracer;
                     this.prerunChecker = new InstallerPreRunChecker(this.tracer, this.Confirmed ? ScalarConstants.UpgradeVerbMessages.ScalarUpgradeConfirm : ScalarConstants.UpgradeVerbMessages.ScalarUpgrade);
 
+                    ICredentialStore credentialStore;
+
                     string gitBinPath = ScalarPlatform.Instance.GitInstallation.GetInstalledGitBinPath();
                     if (string.IsNullOrEmpty(gitBinPath))
                     {
-                        error = $"nameof(this.TryInitializeUpgrader): Unable to locate git installation. Ensure git is installed and try again.";
-                        return false;
-                    }
+                        // Unable to locate a Git installation on the system, instead use GCM Core directly if it has been bundled
+                        string externalBinDir = ProcessHelper.GetBundledExternalBinariesLocation();
+                        string gcmToolFileName = "git-credential-manager-core" + ScalarPlatform.Instance.Constants.ExecutableExtension;
+                        string gcmToolFilePath = Path.Combine(externalBinDir, "gcm", gcmToolFileName);
+                        if (!this.fileSystem.FileExists(gcmToolFilePath))
+                        {
+                            error = $"{nameof(this.TryInitializeUpgrader)}: Unable to locate Git installation or bundled GCM Core. Ensure Git is installed and try again.";
+                            return false;
+                        }
 
-                    ICredentialStore credentialStore = new GitProcess(gitBinPath, workingDirectoryRoot: null);
+                        credentialStore = new GitCredentialManagerProcess(gcmToolFilePath);
+                        tracer.RelatedInfo("Using bundled GCM process for credential management");
+                    }
+                    else
+                    {
+                        // Use the Git process for interacting with the configured credential helper
+                        credentialStore = new GitProcess(gitBinPath, workingDirectoryRoot: null);
+                        tracer.RelatedInfo("Using installed Git process for management");
+                    }
 
                     ProductUpgrader upgrader;
                     if (ProductUpgrader.TryCreateUpgrader(this.tracer, this.fileSystem, new LocalScalarConfig(), credentialStore, this.DryRun, this.NoVerify, out upgrader, out error))

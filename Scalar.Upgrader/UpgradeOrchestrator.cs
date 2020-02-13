@@ -176,7 +176,10 @@ namespace Scalar.Upgrader
                     return false;
                 }
 
-                ICredentialStore credentialStore = new GitProcess(gitBinPath, workingDirectoryRoot: null);
+                if (!ScalarPlatform.Instance.TryGetCredentialStore(this.tracer, this.fileSystem, out ICredentialStore credentialStore, out errorMessage))
+                {
+                    return false;
+                }
 
                 ProductUpgrader upgrader;
                 if (!ProductUpgrader.TryCreateUpgrader(this.tracer, this.fileSystem, new LocalScalarConfig(), credentialStore, this.DryRun, this.NoVerify, out upgrader, out errorMessage))

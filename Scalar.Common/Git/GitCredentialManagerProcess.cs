@@ -128,19 +128,21 @@ namespace Scalar.Common.Git
 
         private static bool TryAppendUrlLines(StringBuilder sb, string url, out string errorMessage)
         {
-            if (Uri.TryCreate(url, UriKind.Absolute, out Uri repoUri))
+            if (Uri.TryCreate(url, UriKind.Absolute, out Uri uri))
             {
-                sb.AppendFormat("host={0}\n", repoUri.Host);
+                sb.AppendFormat("protocol={0}\n", uri.Scheme);
+                sb.AppendFormat("host={0}\n", uri.Host);
 
-                if (repoUri.PathAndQuery != null)
+                if (uri.PathAndQuery != null)
                 {
-                    string[] pathAndQuery = repoUri.PathAndQuery.Split('?');
+                    string[] pathAndQuery = uri.PathAndQuery.Split('?');
                     if (pathAndQuery.Length > 0)
                     {
-                        string path = pathAndQuery[0];
-                        if (path != null)
+                        // Trim any trailing "/" from the path
+                        string path = pathAndQuery[0]?.TrimEnd('/');
+                        if (!string.IsNullOrWhiteSpace(path))
                         {
-                            sb.AppendFormat("path={0}\n", repoUri.PathAndQuery);
+                            sb.AppendFormat("path={0}\n", uri.PathAndQuery);
                         }
                     }
                 }
